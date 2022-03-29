@@ -95,6 +95,33 @@ class MainGame:
         elif idx == constants.RIGHT:
             self.enemies[idx] = Enemy(160 - 6, (160 - 6) / 2, constants.LEFT)
 
+    def check_collision(self):
+        for cnt in range(len(self.bullets)):
+            item = self.bullets[cnt]
+            if item:
+                item.update_position()
+                if item.is_outside():
+                    self.bullets[cnt] = None
+
+        for cnt in range(len(self.enemies)):
+            item = self.enemies[cnt]
+            if item:
+                item.update_position()
+                if item.is_outside():
+                    print(f"{item.name} {cnt} OUTSIDE and DELETED")
+                    self.enemies[cnt] = None
+                collide = False
+                for bc in range(len(self.bullets)):
+                    b = self.bullets[bc]
+                    if b and item.collide_with(b):
+                        collide = True
+                        self.enemies[cnt] = None
+                        self.bullets[bc] = None
+                if not collide:
+                    if item.collide_with(self.player):
+                        self.enemies[cnt] = None
+                        print("GAME OVER")
+
     def update(self):
 
         if pyxel.btnp(pyxel.KEY_E):
@@ -123,31 +150,7 @@ class MainGame:
                 self.bullets[constants.RIGHT] = Bullet(self.player.x + self.player.width,
                                                        self.player.y + 2, constants.RIGHT)
 
-        for cnt in range(len(self.bullets)):
-            item = self.bullets[cnt]
-            if item:
-                item.update_position()
-                if item.is_outside():
-                    self.bullets[cnt] = None
 
-        for cnt in range(len(self.enemies)):
-            item = self.enemies[cnt]
-            if item:
-                item.update_position()
-                if item.is_outside():
-                    print(f"{item.name} {cnt} OUTSIDE and DELETED")
-                    self.enemies[cnt] = None
-                collide = False
-                for bc in range(len(self.bullets)):
-                    b = self.bullets[bc]
-                    if b and item.collide_with(b):
-                        collide = True
-                        self.enemies[cnt] = None
-                        self.bullets[bc] = None
-                if not collide:
-                    if item.collide_with(self.player):
-                        self.enemies[cnt] = None
-                        print("GAME OVER")
 
     def draw(self):
         pyxel.cls(0)
@@ -156,6 +159,7 @@ class MainGame:
 
         pyxel.rect(0, (160 - 8) / 2, 160, 8, 7)
 
+        self.check_collision()
         self.player.draw()
         for item in self.bullets:
             if item is not None:

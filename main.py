@@ -176,5 +176,5 @@ class MainGame:
         if pyxel.frame_count % 16 == 0:
             self.add_enemy()
 
-
-MainGame()
+if __name__ == "__main__":
+    MainGame()

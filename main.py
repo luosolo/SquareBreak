@@ -2,6 +2,17 @@ import pyxel
 import constants
 from random import *
 
+def define_sound():
+    pyxel.sound(0).set(
+            notes="c3e3g3c4c4", tones="s", volumes="4", effects=("n" * 4 + "f"), speed=7
+        )
+    pyxel.sound(1).set(
+            notes="f3 b2 f2 b1  f1 f1 f1 f1",
+            tones="p",
+            volumes=("4" * 4 + "4321"),
+            effects=("n" * 7 + "f"),
+            speed=9,
+        )
 
 class Drawable:
     def __init__(self, x, y, u, v, w, h, name=None):
@@ -14,7 +25,7 @@ class Drawable:
         self.height = h
 
     def draw(self):
-        pyxel.blt(self.x, self.y, 0, self.u, self.v, self.width, self.height)
+        pyxel.blt(self.x, self.y, 0, self.u, self.v, self.width, self.height,0)
 
 
 class Movable(Drawable):
@@ -78,22 +89,24 @@ class MainGame:
         pyxel.load("assets/sqb.pyxres")
         self.player = Player((160 - 8) / 2, (160 - 8) / 2)
         self.bullets: list[Bullet] = [None, None, None, None]
-        self.enemies: list[Enemy] = [None, None, None, None]
+        self.enemies: list[Enemy] = []
+        self.enemy_count = 16
+        self.lives = [Drawable(140-i*8,10,8,8,8,8) for i in range(3)]        
+        self.score = 0
+        define_sound()
         pyxel.run(self.update, self.draw)
 
-    def add_enemy(self):
-        el = [cnt for cnt in range(4) if self.enemies[cnt] is None]
-        idx = choice(el)
+    def add_enemy(self):        
+        idx = randint(0,3)
         if idx == constants.UP:
-            self.enemies[idx] = Enemy((160 - 6) / 2,  self.player.height, constants.DOWN)
+            self.enemies.append(Enemy((160 - 6) / 2,  self.player.height, constants.DOWN))
         elif idx == constants.DOWN:
-            self.enemies[idx] = Enemy((160 - 6) / 2, 160 - self.player.height, constants.UP)
+            self.enemies.append(Enemy((160 - 6) / 2, 160 - self.player.height, constants.UP))
 
         elif idx == constants.LEFT:
-            self.enemies[idx] = Enemy(4, (160 - 6) / 2, constants.RIGHT)
-
+            self.enemies.append(Enemy(4, (160 - 6) / 2, constants.RIGHT))
         elif idx == constants.RIGHT:
-            self.enemies[idx] = Enemy(160 - 6, (160 - 6) / 2, constants.LEFT)
+            self.enemies.append(Enemy(160 - 6, (160 - 6) / 2, constants.LEFT))
 
     def check_collision(self):
         for cnt in range(len(self.bullets)):
@@ -107,8 +120,7 @@ class MainGame:
             item = self.enemies[cnt]
             if item:
                 item.update_position()
-                if item.is_outside():
-                    print(f"{item.name} {cnt} OUTSIDE and DELETED")
+                if item.is_outside():                    
                     self.enemies[cnt] = None
                 collide = False
                 for bc in range(len(self.bullets)):
@@ -117,10 +129,16 @@ class MainGame:
                         collide = True
                         self.enemies[cnt] = None
                         self.bullets[bc] = None
+                        self.score += 1
+                        pyxel.play(0, 0)
                 if not collide:
                     if item.collide_with(self.player):
                         self.enemies[cnt] = None
-                        print("GAME OVER")
+                        pyxel.play(0, 1)                    
+                        if len(self.lives) >1:
+                            self.lives.pop()                       
+
+        self.enemies = [k for k in self.enemies if k is not None]
 
     def update(self):
 
@@ -151,10 +169,16 @@ class MainGame:
                                                        self.player.y + 2, constants.RIGHT)
 
 
+    def draw_border(self):
+        pyxel.rect(0, 0, 160, 4, 1)
+        pyxel.rect(0, 160 - 4, 160, 4, 1)
+
+        pyxel.rect(0, 0, 4, 160, 1)
+        pyxel.rect(160 - 4, 0, 4, 160, 1)
 
     def draw(self):
         pyxel.cls(0)
-
+        
         pyxel.rect((160 - 8) / 2, 0, 8, 160, 7)
 
         pyxel.rect(0, (160 - 8) / 2, 160, 8, 7)
@@ -168,12 +192,16 @@ class MainGame:
         for item in self.enemies:
             if item is not None:
                 item.draw()
-        pyxel.rect(0, 0, 160, 4, 1)
-        pyxel.rect(0, 160 - 4, 160, 4, 1)
+        self.draw_border()
+        s = "Score: {}".format(self.score)
 
-        pyxel.rect(0, 0, 4, 160, 1)
-        pyxel.rect(160 - 4, 0, 4, 160, 1)
-        if pyxel.frame_count % 16 == 0:
+
+        for item in self.lives:
+            item.draw()
+        pyxel.text(1,1,s,6)
+
+
+        if pyxel.frame_count % self.enemy_count == 0:
             self.add_enemy()
 
 if __name__ == "__main__":

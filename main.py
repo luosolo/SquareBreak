@@ -1,6 +1,13 @@
 import pyxel
 import constants
 from random import *
+from enum import Enum
+
+class GameStatus(Enum):
+    GAME = 0,
+    Main_UI =1
+
+
 
 def define_sound():
     pyxel.sound(0).set(
@@ -71,7 +78,6 @@ class Player(Drawable):
 
     def draw(self):
         super(Player, self).draw()
-
         if self.direction == constants.UP:
             pyxel.rect(self.x, self.y - 4, 8, 4, 3)
         elif self.direction == constants.DOWN:
@@ -84,15 +90,21 @@ class Player(Drawable):
 
 class MainGame:
 
-    def __init__(self, width=160, height=160):
-        pyxel.init(width, height, title="Battle Square")
-        pyxel.load("assets/sqb.pyxres")
+    def init_game(self):
         self.player = Player((160 - 8) / 2, (160 - 8) / 2)
         self.bullets: list[Bullet] = [None, None, None, None]
         self.enemies: list[Enemy] = []
         self.enemy_count = 16
         self.lives = [Drawable(140-i*8,10,8,8,8,8) for i in range(3)]        
         self.score = 0
+
+    def __init__(self, width=160, height=160):
+        pyxel.init(width, height, title="Battle Square")
+        pyxel.load("assets/sqb.pyxres")
+        self.status = GameStatus.Main_UI
+        self.arrow =  Drawable(0,0,0,16,16,16)
+        self.selected = 0
+        self.message = ""
         define_sound()
         pyxel.run(self.update, self.draw)
 
@@ -136,22 +148,19 @@ class MainGame:
                         self.enemies[cnt] = None
                         pyxel.play(0, 1)                    
                         if len(self.lives) >1:
-                            self.lives.pop()                       
+                            self.lives.pop()
+                        else:
+                            self.message = "GAME OVER: SCORE: {}".format(self.score)                       
+                            self.status= GameStatus.Main_UI
 
         self.enemies = [k for k in self.enemies if k is not None]
 
-    def update(self):
-
-        if pyxel.btnp(pyxel.KEY_E):
-            self.add_enemy()
-
-        if pyxel.btnp(pyxel.KEY_Q):
-            pyxel.quit()
-        elif pyxel.btnp(pyxel.KEY_DOWN):
-            self.player.direction = constants.DOWN
-            if self.bullets[constants.DOWN] is None:
-                self.bullets[constants.DOWN] = Bullet(self.player.x + 2,
-                                                      self.player.y + self.player.height, constants.DOWN)
+    def update_game(self):
+        if pyxel.btnp(pyxel.KEY_DOWN):
+                self.player.direction = constants.DOWN
+                if self.bullets[constants.DOWN] is None:
+                    self.bullets[constants.DOWN] = Bullet(self.player.x + 2,
+                                                        self.player.y + self.player.height, constants.DOWN)
         elif pyxel.btnp(pyxel.KEY_UP):
             self.player.direction = constants.UP
             if self.bullets[constants.UP] is None:
@@ -161,13 +170,35 @@ class MainGame:
             self.player.direction = constants.LEFT
             if self.bullets[constants.LEFT] is None:
                 self.bullets[constants.LEFT] = Bullet(self.player.x - 4,
-                                                      self.player.y + 2, constants.LEFT)
+                                                    self.player.y + 2, constants.LEFT)
         elif pyxel.btnp(pyxel.KEY_RIGHT):
             self.player.direction = constants.RIGHT
             if self.bullets[constants.RIGHT] is None:
                 self.bullets[constants.RIGHT] = Bullet(self.player.x + self.player.width,
-                                                       self.player.y + 2, constants.RIGHT)
+                                                    self.player.y + 2, constants.RIGHT)
 
+    def update_ui(self):
+        if pyxel.btnp(pyxel.KEY_UP):
+            self.selected = abs((self.selected-1) %2)
+        elif pyxel.btnp(pyxel.KEY_DOWN):
+            self.selected = abs((self.selected+1) %2)            
+        elif pyxel.btnp(pyxel.KEY_RETURN):
+            if self.selected == 0:
+                self.status = GameStatus.GAME
+                self.init_game()
+            else:
+                pyxel.quit()
+            
+
+
+    def update(self):
+        if pyxel.btnp(pyxel.KEY_Q):
+            pyxel.quit()
+
+        if self.status == GameStatus.GAME:
+            self.update_game()
+        elif self.status == GameStatus.Main_UI:
+            self.update_ui()
 
     def draw_border(self):
         pyxel.rect(0, 0, 160, 4, 1)
@@ -176,7 +207,7 @@ class MainGame:
         pyxel.rect(0, 0, 4, 160, 1)
         pyxel.rect(160 - 4, 0, 4, 160, 1)
 
-    def draw(self):
+    def game_draw(self):
         pyxel.cls(0)
         
         pyxel.rect((160 - 8) / 2, 0, 8, 160, 7)
@@ -194,8 +225,6 @@ class MainGame:
                 item.draw()
         self.draw_border()
         s = "Score: {}".format(self.score)
-
-
         for item in self.lives:
             item.draw()
         pyxel.text(1,1,s,6)
@@ -203,6 +232,31 @@ class MainGame:
 
         if pyxel.frame_count % self.enemy_count == 0:
             self.add_enemy()
+
+    def ui_draw(self):
+        pyxel.cls(0)
+        if self.selected == 0:
+            self.arrow.x = 20
+            self.arrow.y = 60
+        elif self.selected == 1:
+            self.arrow.x = 20
+            self.arrow.y = 80
+        self.arrow.draw()
+        pyxel.text(40,30, "S Q U A R E   B R E A K", pyxel.frame_count % 16)
+        pyxel.text(60,60, "NEW GAME", 3)
+        pyxel.text(60,80, "QUIT", 4)
+        if len(self.message)>0:
+            pyxel.text(40,100, self.message, pyxel.frame_count % 5)
+
+
+    def draw(self):
+        if self.status == GameStatus.GAME:
+            self.game_draw()
+        elif self.status == GameStatus.Main_UI:
+            self.ui_draw()
+
+
+        
 
 if __name__ == "__main__":
     MainGame()
